@@ -1,101 +1,236 @@
-/* =========================================
-   GROWMATE - MAIN JAVASCRIPT
-   Navbar & Footer Loader + Active Link Handler
-   ========================================= */
+/* =========================================================
+   GROWMATE IT COMPANY - MAIN JAVASCRIPT
+   ========================================================= */
 
 document.addEventListener('DOMContentLoaded', function () {
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.documentElement.classList.add('motion-ready');
 
-    // ===== 1. LOAD NAVBAR =====
-    const navbarPlaceholder = document.getElementById('navbar-placeholder');
-
-    if (navbarPlaceholder) {
-        fetch('components/navbar.html')
-            .then(response => {
-                if (!response.ok) throw new Error('Navbar not found');
-                return response.text();
-            })
-            .then(data => {
-                navbarPlaceholder.innerHTML = data;
-                setActiveLink(); // Navbar load hone ke baad active link set karein
-            })
-            .catch(error => {
-                console.error('Navbar load error:', error);
-                navbarPlaceholder.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Navbar load nahi hua. Live Server use karein.</p>';
-            });
-    }
-
-    // ===== 2. LOAD FOOTER =====
-    const footerPlaceholder = document.getElementById('footer-placeholder');
-
-    if (footerPlaceholder) {
-        fetch('components/footer.html')
-            .then(response => {
-                if (!response.ok) throw new Error('Footer not found');
-                return response.text();
-            })
-            .then(data => {
-                footerPlaceholder.innerHTML = data;
-            })
-            .catch(error => {
-                console.error('Footer load error:', error);
-                footerPlaceholder.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Footer load nahi hua. Live Server use karein.</p>';
-            });
-    }
-
-    // ===== 3. SET ACTIVE LINK (Navbar) =====
-    function setActiveLink() {
-        // Current page ka filename nikalein (jaise "services.html")
-        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-
-        // Navbar ke saare links ko select karein
-        const navLinks = document.querySelectorAll('#navbar-placeholder .nav-link');
-
-        navLinks.forEach(link => {
-            const linkPage = link.getAttribute('href');
-
-            // Agar link ka href current page se match kare toh active class add karein
-            if (linkPage === currentPage) {
-                link.classList.add('active');
-            } else {
-                link.classList.remove('active');
-            }
-        });
-    }
-
-    // ===== 4. NAVBAR SCROLL EFFECT (Optional) =====
-    window.addEventListener('scroll', function () {
-        const navbar = document.querySelector('.navbar');
-        if (navbar) {
-            if (window.scrollY > 50) {
-                navbar.style.boxShadow = '0 5px 20px rgba(0,0,0,0.3)';
-            } else {
-                navbar.style.boxShadow = 'none';
-            }
+    /* ---------- 1. ACTIVE NAV LINK ---------- */
+    var currentPage = window.location.pathname.split('/').pop().toLowerCase() || 'index.html';
+    document.querySelectorAll('.site-nav .nav-link').forEach(function (link) {
+        if (link.getAttribute('href').toLowerCase() === currentPage) {
+            link.classList.add('active');
+            link.setAttribute('aria-current', 'page');
         }
     });
 
+    /* ---------- 2. NAVBAR SHADOW + BACK TO TOP ---------- */
+    var nav = document.querySelector('.site-nav');
+    var topBtn = document.getElementById('backToTop');
+    var scrollFrame = 0;
 
-    // ===== 5. BACK TO TOP =====
-    const topBtn = document.createElement('button');
-    topBtn.className = 'to-top';
-    topBtn.setAttribute('aria-label', 'Back to top');
-    topBtn.innerHTML = '<i class="fas fa-arrow-up"></i>';
-    topBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-    document.body.appendChild(topBtn);
-    window.addEventListener('scroll', () => topBtn.classList.toggle('show', window.scrollY > 400));
+    function onScroll() {
+        if (scrollFrame) return;
+        scrollFrame = window.requestAnimationFrame(function () {
+            var y = window.scrollY || document.documentElement.scrollTop;
+            if (nav) nav.classList.toggle('scrolled', y > 20);
+            if (topBtn) topBtn.classList.toggle('show', y > 500);
+            scrollFrame = 0;
+        });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
 
-    // ===== 6. COOKIE NOTICE (UK) =====
-    try {
-        if (!localStorage.getItem('gm-cookie-ok')) {
-            const bar = document.createElement('div');
-            bar.className = 'cookie-bar';
-            bar.innerHTML = '<p class="mb-2">We use only essential cookies to make this site work. See our <a href="privacy.html">Privacy Policy</a>.</p><button class="btn btn-primary-custom btn-sm">OK, got it</button>';
-            bar.querySelector('button').addEventListener('click', () => {
-                localStorage.setItem('gm-cookie-ok', '1');
-                bar.remove();
+    if (topBtn) {
+        topBtn.addEventListener('click', function () {
+            window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+        });
+    }
+
+    /* ---------- 3. CLOSE MOBILE MENU ON LINK CLICK ---------- */
+    var menu = document.getElementById('navbarNav');
+    if (menu) {
+        menu.querySelectorAll('a').forEach(function (a) {
+            a.addEventListener('click', function () {
+                if (menu.classList.contains('show') && window.bootstrap) {
+                    window.bootstrap.Collapse.getOrCreateInstance(menu).hide();
+                }
             });
-            document.body.appendChild(bar);
-        }
-    } catch (e) { /* storage blocked, skip notice */ }
+        });
+    }
 
+    /* ---------- 4. SCROLL REVEAL ANIMATION ---------- */
+    document.querySelectorAll('.page-hero .container, .error-box .container').forEach(function (el) {
+        el.classList.add('page-enter');
+    });
+    document.querySelectorAll('main > .section > .container > .text-center, main > .section-soft > .container > .text-center').forEach(function (el) {
+        el.classList.add('reveal');
+    });
+    var revealItems = document.querySelectorAll('.reveal');
+    if (!reduceMotion && 'IntersectionObserver' in window) {
+        var revealObserver = new IntersectionObserver(function (entries, obs) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('in');
+                    obs.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.08, rootMargin: '0px 0px -36px 0px' });
+        revealItems.forEach(function (el) { revealObserver.observe(el); });
+    } else {
+        revealItems.forEach(function (el) { el.classList.add('in'); });
+    }
+
+    /* ---------- 5. NUMBER COUNTERS ---------- */
+    var counters = document.querySelectorAll('[data-count]');
+    function runCounter(el) {
+        var target = parseFloat(el.getAttribute('data-count'));
+        var suffix = el.getAttribute('data-suffix') || '';
+        if (!Number.isFinite(target)) {
+            console.error('Invalid data-count value:', el.getAttribute('data-count'));
+            return;
+        }
+        if (reduceMotion) {
+            el.textContent = target + suffix;
+            return;
+        }
+        var duration = 1000;
+        var start = null;
+        function tick(ts) {
+            if (!start) start = ts;
+            var rawProgress = Math.min((ts - start) / duration, 1);
+            var progress = 1 - Math.pow(1 - rawProgress, 3);
+            el.textContent = Math.floor(progress * target) + suffix;
+            if (rawProgress < 1) {
+                requestAnimationFrame(tick);
+            } else {
+                el.textContent = target + suffix;
+            }
+        }
+        requestAnimationFrame(tick);
+    }
+    if (!reduceMotion && 'IntersectionObserver' in window) {
+        var counterObserver = new IntersectionObserver(function (entries, obs) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    runCounter(entry.target);
+                    obs.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.5 });
+        counters.forEach(function (el) { counterObserver.observe(el); });
+    } else {
+        counters.forEach(function (el) {
+            el.textContent = el.getAttribute('data-count') + (el.getAttribute('data-suffix') || '');
+        });
+    }
+
+    /* ---------- 6. PORTFOLIO FILTER ---------- */
+    var filterButtons = document.querySelectorAll('.filter-btn');
+    var portfolioItems = document.querySelectorAll('.portfolio-item');
+    var portfolioFilterStatus = document.getElementById('portfolioFilterStatus');
+    filterButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var filter = btn.getAttribute('data-filter');
+            filterButtons.forEach(function (b) {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+            });
+            btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
+            var visibleCount = 0;
+            portfolioItems.forEach(function (item) {
+                var show = filter === 'all' || item.getAttribute('data-category') === filter;
+                item.classList.toggle('hide', !show);
+                item.classList.remove('filter-in');
+                if (show && !reduceMotion) {
+                    window.requestAnimationFrame(function () {
+                        item.classList.add('filter-in');
+                    });
+                }
+                if (show) visibleCount += 1;
+            });
+            if (portfolioFilterStatus) {
+                portfolioFilterStatus.textContent = visibleCount + (visibleCount === 1 ? ' project shown.' : ' projects shown.');
+            }
+        });
+    });
+
+    /* ---------- 7. COOKIE BANNER ---------- */
+    var banner = document.getElementById('cookieBanner');
+    if (banner) {
+        var saved = null;
+        try { saved = localStorage.getItem('growmate_cookie_choice'); } catch (e) { saved = null; }
+        if (!saved) {
+            setTimeout(function () { banner.classList.add('show'); }, 1200);
+        }
+        banner.querySelectorAll('[data-cookie]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                try { localStorage.setItem('growmate_cookie_choice', btn.getAttribute('data-cookie')); } catch (e) { /* ignore */ }
+                banner.classList.remove('show');
+            });
+        });
+    }
+    portfolioItems.forEach(function (item) {
+        item.addEventListener('animationend', function (event) {
+            if (event.animationName === 'portfolio-enter') item.classList.remove('filter-in');
+        });
+    });
+
+    /* ---------- 8. FOOTER YEAR ---------- */
+    var yearEl = document.getElementById('year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+    /* ---------- 9. CONTACT FORM (Web3Forms) ---------- */
+    var form = document.getElementById('contactForm');
+    if (form) {
+        var status = document.getElementById('formStatus');
+        var submitBtn = form.querySelector('button[type="submit"]');
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (!form.checkValidity()) {
+                form.classList.add('was-validated');
+                return;
+            }
+
+            var formData = new FormData(form);
+            var accessKey = formData.get('access_key');
+            if (!accessKey || accessKey === 'PASTE_YOUR_ACCESS_KEY_HERE') {
+                status.textContent = 'The enquiry form is not configured yet. Please call 07913 174310 or email growmate35@gmail.com instead.';
+                status.className = 'form-status error';
+                return;
+            }
+
+            var originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            form.setAttribute('aria-busy', 'true');
+            submitBtn.innerHTML = 'Sending...';
+            status.className = 'form-status';
+
+            var json = JSON.stringify(Object.fromEntries(formData));
+
+            fetch('https://api.web3forms.com/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: json
+            })
+                .then(function (res) {
+                    if (!res.ok) throw new Error('Contact form service returned HTTP ' + res.status);
+                    return res.json();
+                })
+                .then(function (data) {
+                    if (data.success) {
+                        status.textContent = 'Thank you! Your message has been sent. We will reply within 24 hours.';
+                        status.className = 'form-status success';
+                        form.reset();
+                        form.classList.remove('was-validated');
+                    } else {
+                        throw new Error(data.message || 'Failed');
+                    }
+                })
+                .catch(function (error) {
+                    console.error('Contact form submission failed:', error);
+                    status.textContent = 'Sorry, something went wrong. Please call 07913 174310 or email growmate35@gmail.com.';
+                    status.className = 'form-status error';
+                })
+                .finally(function () {
+                    submitBtn.disabled = false;
+                    form.removeAttribute('aria-busy');
+                    submitBtn.innerHTML = originalText;
+                });
+        });
+    }
 });
